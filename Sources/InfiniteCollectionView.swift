@@ -152,13 +152,13 @@ open class InfiniteCollectionView: UIScrollView {
         setupScrollView()
     }
 
-    override init(frame: CGRect) {
+    public override init(frame: CGRect) {
         direction = .vertical
         super.init(frame: frame)
         setupScrollView()
     }
 
-    init(frame: CGRect, direction: ScrollDirection) {
+    public init(frame: CGRect, direction: ScrollDirection) {
         self.direction = direction
         super.init(frame: frame)
         setupScrollView()
