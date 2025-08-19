@@ -33,7 +33,7 @@ open class InfiniteCollectionViewCell: UIView {
         ])
     }
 
-    internal func prepareForReuse() {
+    open func prepareForReuse() {
         // Override in subclasses to reset cell state
     }
 
