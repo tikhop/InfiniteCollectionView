@@ -70,7 +70,7 @@ private let kDefaultContentSize: CGFloat = 50000
 
 @MainActor
 open class InfiniteCollectionView: UIScrollView {
-    weak var infiniteDelegate: (any InfiniteCollectionViewDelegate)? {
+    public weak var infiniteDelegate: (any InfiniteCollectionViewDelegate)? {
         didSet {
             setNeedsLayout()
             layoutIfNeeded()
