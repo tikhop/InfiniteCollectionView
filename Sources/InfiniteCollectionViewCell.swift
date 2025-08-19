@@ -1,11 +1,11 @@
 import UIKit
 
 open class InfiniteCollectionViewCell: UIView {
-    let contentView: UIView
+    public let contentView: UIView
 
     private(set) var reuseIdentifier: String?
 
-    override init(frame: CGRect) {
+    public override init(frame: CGRect) {
         contentView = UIView()
         super.init(frame: frame)
         setupContentView()
@@ -33,7 +33,7 @@ open class InfiniteCollectionViewCell: UIView {
         ])
     }
 
-    func prepareForReuse() {
+    internal func prepareForReuse() {
         // Override in subclasses to reset cell state
     }
 

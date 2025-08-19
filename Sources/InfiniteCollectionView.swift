@@ -4,25 +4,25 @@ import UIKit
 
 @MainActor
 public protocol InfiniteCollectionViewDelegate: UIScrollViewDelegate {
-    func infiniteCollectionView(_ view: InfiniteCollectionView, didSelectCellAt indexPath: IndexPath)
-    func infiniteCollectionView(_ view: InfiniteCollectionView, sizeForCellAt indexPath: IndexPath) -> CGSize
-    func infiniteCollectionView(_ view: InfiniteCollectionView, cellForItemAt indexPath: IndexPath) -> InfiniteCollectionViewCell
+    func infiniteCollectionView(_ view: InfiniteCollectionView, didSelectCellAt index: Int)
+    func infiniteCollectionView(_ view: InfiniteCollectionView, sizeForCellAt index: Int) -> CGSize
+    func infiniteCollectionView(_ view: InfiniteCollectionView, cellForItemAt index: Int) -> InfiniteCollectionViewCell
     func infiniteCollectionViewDidChangePage(_ view: InfiniteCollectionView, page: Int)
 
-    func infiniteCollectionView(_ view: InfiniteCollectionView, willDisplay cell: InfiniteCollectionViewCell, forItemAt indexPath: IndexPath)
-    func infiniteCollectionView(_ view: InfiniteCollectionView, didEndDisplaying cell: InfiniteCollectionViewCell, forItemAt indexPath: IndexPath)
+    func infiniteCollectionView(_ view: InfiniteCollectionView, willDisplay cell: InfiniteCollectionViewCell, forItemAt index: Int)
+    func infiniteCollectionView(_ view: InfiniteCollectionView, didEndDisplaying cell: InfiniteCollectionViewCell, forItemAt index: Int)
 
-    func infiniteCollectionView(_ view: InfiniteCollectionView, willScrollTo cell: InfiniteCollectionViewCell, forItemAt indexPath: IndexPath)
+    func infiniteCollectionView(_ view: InfiniteCollectionView, willScrollTo cell: InfiniteCollectionViewCell, forItemAt index: Int)
 }
 
 @MainActor
-extension InfiniteCollectionViewDelegate {
-    func infiniteCollectionView(_ view: InfiniteCollectionView, didSelectCellAt indexPath: IndexPath) { }
+public extension InfiniteCollectionViewDelegate {
+    func infiniteCollectionView(_ view: InfiniteCollectionView, didSelectCellAt index: Int) { }
     func infiniteCollectionViewDidChangePage(_ view: InfiniteCollectionView, page: Int) { }
-    func infiniteCollectionView(_ view: InfiniteCollectionView, willDisplay cell: InfiniteCollectionViewCell, forItemAt indexPath: IndexPath) { }
-    func infiniteCollectionView(_ view: InfiniteCollectionView, didEndDisplaying cell: InfiniteCollectionViewCell, forItemAt indexPath: IndexPath) { }
+    func infiniteCollectionView(_ view: InfiniteCollectionView, willDisplay cell: InfiniteCollectionViewCell, forItemAt index: Int) { }
+    func infiniteCollectionView(_ view: InfiniteCollectionView, didEndDisplaying cell: InfiniteCollectionViewCell, forItemAt index: Int) { }
 
-    func infiniteCollectionView(_ view: InfiniteCollectionView, willScrollTo cell: InfiniteCollectionViewCell, forItemAt indexPath: IndexPath) { }
+    func infiniteCollectionView(_ view: InfiniteCollectionView, willScrollTo cell: InfiniteCollectionViewCell, forItemAt index: Int) { }
 }
 
 // MARK: - ScrollDirection
@@ -82,6 +82,7 @@ open class InfiniteCollectionView: UIScrollView {
 
     private var currentPageIndex = 0
     private var _isPagingEnabled = false
+
     #if os(iOS)
     open override var isPagingEnabled: Bool {
         set {
@@ -114,7 +115,7 @@ open class InfiniteCollectionView: UIScrollView {
 
     private var maxVisibleCells = 0
 
-    private var cellIndexPaths: [InfiniteCollectionViewCell: IndexPath] = [:]
+    private var cellIndexes: [InfiniteCollectionViewCell: Int] = [:]
     private var reusableCellPools: [String: Set<InfiniteCollectionViewCell>] = [:]
     private var registeredCellClasses: [String: InfiniteCollectionViewCell.Type] = [:]
 
@@ -188,9 +189,9 @@ open class InfiniteCollectionView: UIScrollView {
         // Find which cell was tapped
         for cell in visibleCells {
             if cell.frame.contains(location),
-               let indexPath = cellIndexPaths[cell],
+               let index = cellIndexes[cell],
                let delegate = infiniteDelegate {
-                delegate.infiniteCollectionView(self, didSelectCellAt: indexPath)
+                delegate.infiniteCollectionView(self, didSelectCellAt: index)
                 break
             }
         }
@@ -253,7 +254,7 @@ open class InfiniteCollectionView: UIScrollView {
         if _isPagingEnabled && !hasPerformedInitialCentering {
             hasPerformedInitialCentering = true
 
-            centerCell(at: IndexPath(item: 0, section: 0))
+            centerCell(at: 0)
 
             // Use the same adjusted bounds calculation
             bounds = adjustedBounds()
@@ -282,11 +283,11 @@ open class InfiniteCollectionView: UIScrollView {
         registeredCellClasses[identifier] = cellClass
     }
 
-    open func dequeueReusableCell(withReuseIdentifier identifier: String, for indexPath: IndexPath) -> InfiniteCollectionViewCell {
+    open func dequeueReusableCell(withReuseIdentifier identifier: String, for index: Int) -> InfiniteCollectionViewCell {
         if var pool = reusableCellPools[identifier], let cell = pool.popFirst() {
             reusableCellPools[identifier] = pool
             cell.prepareForReuse()
-            cellIndexPaths[cell] = indexPath
+            cellIndexes[cell] = index
             cell.isHidden = false
             return cell
         }
@@ -297,7 +298,7 @@ open class InfiniteCollectionView: UIScrollView {
 
         let cell = cellClass.init()
         cell.setReuseIdentifier(identifier)
-        cellIndexPaths[cell] = indexPath
+        cellIndexes[cell] = index
         containerView.addSubview(cell)
         return cell
     }
@@ -305,7 +306,7 @@ open class InfiniteCollectionView: UIScrollView {
     private func enqueueCell(_ cell: InfiniteCollectionViewCell) {
         guard let identifier = cell.reuseIdentifier else { return }
 
-        cellIndexPaths.removeValue(forKey: cell)
+        cellIndexes.removeValue(forKey: cell)
 
         if let cells = reusableCellPools[identifier], cells.count >= maxVisibleCells {
             cell.removeFromSuperview()
@@ -317,17 +318,17 @@ open class InfiniteCollectionView: UIScrollView {
 
     // MARK: - Cell Tiling
 
-    private func createCell(at indexPath: IndexPath) -> InfiniteCollectionViewCell? {
+    private func createCell(at index: Int) -> InfiniteCollectionViewCell? {
         guard let delegate = infiniteDelegate else { return nil }
 
-        let cell = delegate.infiniteCollectionView(self, cellForItemAt: indexPath)
-        cellIndexPaths[cell] = indexPath
+        let cell = delegate.infiniteCollectionView(self, cellForItemAt: index)
+        cellIndexes[cell] = index
 
         return cell
     }
 
-    private func centerCell(at indexPath: IndexPath) {
-        guard let cell = visibleCells.first(where: { cellIndexPaths[$0]?.item == indexPath.item }) else { return }
+    private func centerCell(at index: Int) {
+        guard let cell = visibleCells.first(where: { cellIndexes[$0] == index }) else { return }
 
         let cellCenterInScrollView = containerView.convert(cell.center, to: self)
         let viewportCenter = axisBounds / 2
@@ -337,11 +338,11 @@ open class InfiniteCollectionView: UIScrollView {
         setAxisOffset(targetOffset)
     }
 
-    private func placeNewCell(at position: PlacementPosition, edge: CGFloat, indexPath: IndexPath) -> InfiniteCollectionViewCell? {
+    private func placeNewCell(at position: PlacementPosition, edge: CGFloat, index: Int) -> InfiniteCollectionViewCell? {
         guard let delegate = infiniteDelegate,
-              let cell = createCell(at: indexPath) else { return nil }
+              let cell = createCell(at: index) else { return nil }
 
-        let cellSize = delegate.infiniteCollectionView(self, sizeForCellAt: indexPath)
+        let cellSize = delegate.infiniteCollectionView(self, sizeForCellAt: index)
 
         if position == .after {
             visibleCells.append(cell)
@@ -376,12 +377,12 @@ open class InfiniteCollectionView: UIScrollView {
 
         // Ensure at least one cell exists
         if visibleCells.isEmpty {
-            let indexPath = IndexPath(item: 0, section: 0)
-            guard let cell = placeNewCell(at: .after, edge: minVisible - spacing, indexPath: indexPath) else {
+            let index = 0
+            guard let cell = placeNewCell(at: .after, edge: minVisible - spacing, index: index) else {
                 return
             }
 
-            infiniteDelegate?.infiniteCollectionView(self, willDisplay: cell, forItemAt: indexPath)
+            infiniteDelegate?.infiniteCollectionView(self, willDisplay: cell, forItemAt: index)
         }
 
         var lastCell: InfiniteCollectionViewCell! = visibleCells.last
@@ -389,9 +390,9 @@ open class InfiniteCollectionView: UIScrollView {
             let edge = lastCell.maxEdge(for: direction)
             guard edge + spacing < maxVisible else { break }
 
-            if let lastIndexPath = cellIndexPaths[lastCell] {
-                let nextIndexPath = indexPath(for: .after, and: lastIndexPath)
-                lastCell = placeNewCell(at: .after, edge: edge, indexPath: nextIndexPath)
+            if let lastIndexPath = cellIndexes[lastCell] {
+                let nextIndexPath = index(for: .after, and: lastIndexPath)
+                lastCell = placeNewCell(at: .after, edge: edge, index: nextIndexPath)
                 infiniteDelegate?.infiniteCollectionView(self, willDisplay: lastCell, forItemAt: nextIndexPath)
             } else {
                 break
@@ -403,9 +404,9 @@ open class InfiniteCollectionView: UIScrollView {
             let edge = firstCell.minEdge(for: direction)
             guard edge - spacing > minVisible else { break }
 
-            if let firstIndexPath = cellIndexPaths[firstCell] {
-                let prevIndexPath = indexPath(for: .before, and: firstIndexPath)
-                firstCell = placeNewCell(at: .before, edge: edge, indexPath: prevIndexPath)
+            if let firstIndexPath = cellIndexes[firstCell] {
+                let prevIndexPath = index(for: .before, and: firstIndexPath)
+                firstCell = placeNewCell(at: .before, edge: edge, index: prevIndexPath)
                 infiniteDelegate?.infiniteCollectionView(self, willDisplay: firstCell, forItemAt: prevIndexPath)
             } else {
                 break
@@ -417,22 +418,22 @@ open class InfiniteCollectionView: UIScrollView {
 
         while let lastCell = visibleCells.last,
               lastCell.origin(for: direction) >= maxVisible - epsilon {
-            let indexPath = cellIndexPaths[lastCell]!
+            let index = cellIndexes[lastCell]!
 
             enqueueCell(lastCell)
             visibleCells.removeLast()
 
-            infiniteDelegate?.infiniteCollectionView(self, didEndDisplaying: lastCell, forItemAt: indexPath)
+            infiniteDelegate?.infiniteCollectionView(self, didEndDisplaying: lastCell, forItemAt: index)
         }
 
         while let firstCell = visibleCells.first,
               firstCell.maxEdge(for: direction) <= minVisible + epsilon {
-            let indexPath = cellIndexPaths[firstCell]!
+            let index = cellIndexes[firstCell]!
 
             enqueueCell(firstCell)
             visibleCells.removeFirst()
 
-            infiniteDelegate?.infiniteCollectionView(self, didEndDisplaying: lastCell, forItemAt: indexPath)
+            infiniteDelegate?.infiniteCollectionView(self, didEndDisplaying: firstCell, forItemAt: index)
         }
 
         maxVisibleCells = max(visibleCells.count, maxVisibleCells)
@@ -442,22 +443,26 @@ open class InfiniteCollectionView: UIScrollView {
 
     open func reloadData() {
         guard let cell = visibleCells.first,
-              let cellIndexPath = cellIndexPaths[cell] else {
+                let cellIndexPath = cellIndexes[cell] else {
             return
         }
 
         for cell in visibleCells {
+            if let idx = cellIndexes[cell] {
+                infiniteDelegate?.infiniteCollectionView(self, didEndDisplaying: cell, forItemAt: idx)
+            }
+
             enqueueCell(cell)
         }
 
         visibleCells.removeAll()
-        cellIndexPaths.removeAll()
+        cellIndexes.removeAll()
 
         let adjustedBounds = adjustedBounds()
         let visibleBounds = convert(adjustedBounds, to: containerView)
         let minVisible = isHorizontal ? visibleBounds.minX : visibleBounds.minY
 
-        guard let _ = placeNewCell(at: .after, edge: minVisible - spacing, indexPath: cellIndexPath) else {
+        guard let _ = placeNewCell(at: .after, edge: minVisible - spacing, index: cellIndexPath) else {
             return
         }
 
@@ -478,14 +483,14 @@ open class InfiniteCollectionView: UIScrollView {
         var anchorCell: InfiniteCollectionViewCell?
         var anchorRelativePosition: CGFloat = 0
         var closestDistance = CGFloat.greatestFiniteMagnitude
-        var cellsToReposition: [(cell: InfiniteCollectionViewCell, indexPath: IndexPath, newSize: CGSize)] = []
+        var cellsToReposition: [(cell: InfiniteCollectionViewCell, index: Int, newSize: CGSize)] = []
 
         for cell in visibleCells {
-            guard let indexPath = cellIndexPaths[cell] else { continue }
+            guard let index = cellIndexes[cell] else { continue }
 
             // Get new size for this cell
-            let newSize = delegate.infiniteCollectionView(self, sizeForCellAt: indexPath)
-            cellsToReposition.append((cell: cell, indexPath: indexPath, newSize: newSize))
+            let newSize = delegate.infiniteCollectionView(self, sizeForCellAt: index)
+            cellsToReposition.append((cell: cell, index: index, newSize: newSize))
 
             // Check if this is the anchor cell (centermost)
             let cellCenterInScrollView = containerView.convert(cell.center, to: self)
@@ -497,14 +502,14 @@ open class InfiniteCollectionView: UIScrollView {
                 anchorCell = cell
                 // Store relative position of anchor cell center to current viewport center
                 anchorRelativePosition = cellCenter - currentCenter
-            } else if _isPagingEnabled && indexPath.item == currentPageIndex {
+            } else if _isPagingEnabled && index == currentPageIndex {
                 anchorCell = cell
                 anchorRelativePosition = cellCenter - currentCenter
             }
         }
 
         // Sort cells by their index to maintain order
-        cellsToReposition.sort { $0.indexPath.item < $1.indexPath.item }
+        cellsToReposition.sort { $0.index < $1.index }
 
         // Find the anchor cell in sorted array and calculate starting edge
         var currentEdge: CGFloat = 0
@@ -583,12 +588,12 @@ open class InfiniteCollectionView: UIScrollView {
         cell.frame = frame
     }
 
-    internal func indexPath(for placement: PlacementPosition, and pivotIndexPath: IndexPath) -> IndexPath {
+    internal func index(for placement: PlacementPosition, and pivotIndex: Int) -> Int {
         switch placement {
         case .before:
-            IndexPath(row: pivotIndexPath.row - 1, section: pivotIndexPath.section)
+            pivotIndex - 1
         case .after:
-            IndexPath(row: pivotIndexPath.row + 1, section: pivotIndexPath.section)
+            pivotIndex + 1
         }
     }
 
@@ -606,20 +611,20 @@ open class InfiniteCollectionView: UIScrollView {
 }
 
 extension InfiniteCollectionView {
-    public func indexPath(for cell: InfiniteCollectionViewCell) -> IndexPath? {
-        cellIndexPaths[cell]
+    public func index(for cell: InfiniteCollectionViewCell) -> Int? {
+        cellIndexes[cell]
     }
 
     public func scrollToItem(
-        at indexPath: IndexPath,
+        at index: Int,
         at scrollPosition: ScrollPosition,
         animated: Bool
     ) {
         guard let delegate = infiniteDelegate else { return }
 
         // Check if target cell already exists
-        if let existingCell = visibleCells.first(where: { cellIndexPaths[$0] == indexPath }) {
-            currentPageIndex = indexPath.item
+        if let existingCell = visibleCells.first(where: { cellIndexes[$0] == index }) {
+            currentPageIndex = index
             scrollToCell(existingCell, at: scrollPosition, animated: animated)
             return
         }
@@ -644,13 +649,13 @@ extension InfiniteCollectionView {
         }
 
         guard let currentCell = closestCell,
-              let currentIndexPath = cellIndexPaths[currentCell] else {
+              let cellIndex = cellIndexes[currentCell] else {
             // No visible cells
             return
         }
 
         // Calculate the offset based on cell sizes between current and target
-        let delta = indexPath.item - currentIndexPath.item
+        let delta = index - cellIndex
         if delta == 0 {
             scrollToCell(currentCell, at: scrollPosition, animated: animated)
             return
@@ -662,12 +667,12 @@ extension InfiniteCollectionView {
 
         // When going forward: count cells from current+1 to target-1
         // When going backward: count cells from current-1 to target+1
-        let startIndex = currentIndexPath.item + step
-        let endIndex = indexPath.item
+        let startIndex = cellIndex + step
+        let endIndex = index
 
         for i in stride(from: startIndex, to: endIndex, by: step) {
-            let cellIndexPath = IndexPath(item: i, section: 0)
-            let cellSize = delegate.infiniteCollectionView(self, sizeForCellAt: cellIndexPath)
+            let cellIndex = i
+            let cellSize = delegate.infiniteCollectionView(self, sizeForCellAt: cellIndex)
             totalSize += axisComponent(of: cellSize) + spacing
         }
 
@@ -677,7 +682,7 @@ extension InfiniteCollectionView {
 
         // Calculate target position based on current cell position
         let currentCellFrame = containerView.convert(currentCell.frame, to: self)
-        let targetCellSize = delegate.infiniteCollectionView(self, sizeForCellAt: indexPath)
+        let targetCellSize = delegate.infiniteCollectionView(self, sizeForCellAt: index)
         var targetFrame = CGRect.zero
         targetFrame.size = targetCellSize
 
@@ -705,7 +710,7 @@ extension InfiniteCollectionView {
             targetFrame.origin.x = adjustedContentInset.left + (availableWidth - targetCellSize.width) / 2
         }
 
-        currentPageIndex = indexPath.item
+        currentPageIndex = index
 
         // Calculate scroll offset for the target position
         let targetOffset: CGPoint = calculateTargetOffset(from: targetFrame, and: scrollPosition)
@@ -763,7 +768,7 @@ extension InfiniteCollectionView: UIScrollViewDelegate {
         _ scrollView: UIScrollView,
         withVelocity velocity: CGPoint,
         targetContentOffset: UnsafeMutablePointer<CGPoint>
-    ) -> IndexPath? {
+    ) -> Int? {
         guard !visibleCells.isEmpty else { return nil }
 
         let velocityComponent = axisComponent(of: velocity)
@@ -772,12 +777,12 @@ extension InfiniteCollectionView: UIScrollViewDelegate {
         let currentCenter = currentOffset + viewportCenter
 
         // Find all cells and their positions
-        let cellPositions: [(cell: InfiniteCollectionViewCell, center: CGFloat, indexPath: IndexPath)] = visibleCells
+        let cellPositions: [(cell: InfiniteCollectionViewCell, center: CGFloat, index: Int)] = visibleCells
             .compactMap { cell in
-                guard let indexPath = cellIndexPaths[cell] else { return nil }
+                guard let index = cellIndexes[cell] else { return nil }
                 let cellFrame = containerView.convert(cell.frame, to: self)
                 let center = isHorizontal ? cellFrame.midX : cellFrame.midY
-                return (cell, center, indexPath)
+                return (cell, center, index)
             }
             .sorted { $0.center < $1.center }
 
@@ -801,7 +806,7 @@ extension InfiniteCollectionView: UIScrollViewDelegate {
             targetIndex = currentPageIndex - 1
         } else {
             // No velocity - stay on current cell
-            targetIndex = current.indexPath.item
+            targetIndex = current.index
         }
 
 
@@ -811,7 +816,7 @@ extension InfiniteCollectionView: UIScrollViewDelegate {
         let pageSize = cellDimension + spacing
 
         // Calculate target position
-        let delta = targetIndex - current.indexPath.item
+        let delta = targetIndex - current.index
         let targetCenter = current.center + (CGFloat(delta) * pageSize)
         let targetOffset = targetCenter - axisBounds / 2
 
@@ -819,7 +824,7 @@ extension InfiniteCollectionView: UIScrollViewDelegate {
             ? CGPoint(x: targetOffset, y: contentOffset.y)
             : CGPoint(x: contentOffset.x, y: targetOffset)
 
-        return IndexPath(item: targetIndex, section: 0)
+        return targetIndex
     }
 
 
@@ -841,7 +846,7 @@ extension InfiniteCollectionView: UIScrollViewDelegate {
 
     public func scrollViewWillEndDragging(_ scrollView: UIScrollView, withVelocity velocity: CGPoint, targetContentOffset: UnsafeMutablePointer<CGPoint>) {
         if _isPagingEnabled {
-            let newPage = handlePagination(scrollView, withVelocity: velocity, targetContentOffset: targetContentOffset)?.item ?? currentPageIndex
+            let newPage = handlePagination(scrollView, withVelocity: velocity, targetContentOffset: targetContentOffset) ?? currentPageIndex
 
             if newPage != currentPageIndex {
                 currentPageIndex = newPage
@@ -849,18 +854,18 @@ extension InfiniteCollectionView: UIScrollViewDelegate {
             }
 
             var proposedCell: InfiniteCollectionViewCell?
-            var proposedCellIndexPath: IndexPath?
+            var proposedCellIndex: Int?
 
-            for element in cellIndexPaths {
-                if newPage == element.value.item {
+            for element in cellIndexes {
+                if newPage == element.value {
                     proposedCell = element.key
-                    proposedCellIndexPath = element.value
+                    proposedCellIndex = element.value
                     break
                 }
             }
 
-            if let proposedCell, let proposedCellIndexPath {
-                infiniteDelegate?.infiniteCollectionView(self, willScrollTo: proposedCell, forItemAt: proposedCellIndexPath)
+            if let proposedCell, let proposedCellIndex {
+                infiniteDelegate?.infiniteCollectionView(self, willScrollTo: proposedCell, forItemAt: proposedCellIndex)
             }
         }
 
