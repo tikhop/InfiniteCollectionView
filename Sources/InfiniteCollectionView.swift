@@ -446,10 +446,17 @@ open class InfiniteCollectionView: UIScrollView {
             if let idx = cellIndexes[cell] {
                 infiniteDelegate?.infiniteCollectionView(self, didEndDisplaying: cell, forItemAt: idx)
             }
+            cell.removeFromSuperview()
         }
 
         visibleCells.removeAll()
         cellIndexes.removeAll()
+
+        reusableCellPools.values.forEach {
+            $0.forEach {
+                $0.removeFromSuperview()
+            }
+        }
         reusableCellPools.removeAll()
 
         recenterIfNecessary(force: true)
