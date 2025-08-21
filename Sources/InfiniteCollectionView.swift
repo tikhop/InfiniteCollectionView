@@ -441,6 +441,23 @@ open class InfiniteCollectionView: UIScrollView {
 
     // MARK: - Reload Data
 
+    open func resetViewAndReloadData() {
+        for cell in visibleCells {
+            if let idx = cellIndexes[cell] {
+                infiniteDelegate?.infiniteCollectionView(self, didEndDisplaying: cell, forItemAt: idx)
+            }
+        }
+
+        visibleCells.removeAll()
+        cellIndexes.removeAll()
+        reusableCellPools.removeAll()
+
+        recenterIfNecessary(force: true)
+
+        setNeedsLayout()
+        layoutIfNeeded()
+    }
+
     open func reloadData() {
         guard let cell = visibleCells.first,
                 let cellIndexPath = cellIndexes[cell] else {
