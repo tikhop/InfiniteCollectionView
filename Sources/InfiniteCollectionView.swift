@@ -758,7 +758,7 @@ extension InfiniteCollectionView {
             } else if scrollPosition.contains(.centeredHorizontally) {
                 targetOffset.x = targetFrame.midX - bounds.width / 2
             } else if scrollPosition.contains(.right) {
-                targetOffset.x = targetFrame.maxX - bounds.width - adjustedContentInset.left
+                targetOffset.x = targetFrame.maxX - bounds.width - adjustedContentInset.right
             }
         } else {
             if scrollPosition.contains(.top) {
@@ -766,7 +766,7 @@ extension InfiniteCollectionView {
             } else if scrollPosition.contains(.centeredVertically) {
                 targetOffset.y = targetFrame.midY - bounds.height / 2
             } else if scrollPosition.contains(.bottom) {
-                targetOffset.y = targetFrame.maxY - bounds.height - adjustedContentInset.top
+                targetOffset.y = targetFrame.maxY - bounds.height - adjustedContentInset.bottom
             }
         }
 
